@@ -25,9 +25,11 @@ class Atlassian < Plugin
     :default => "", :requires_restart => true,
     :desc => "The channel to notify when tickets are updated")
 
-  def initializne
+  def initialize
     super
+    debug "connecting to #{@bot.config['atlassian.jira_url']})"
     @remote_jira = Jira4R::JiraTool.new(2, @bot.config['atlassian.jira_url'])
+    debug "authenticating as #{@bot.config['atlassian.jira_username']}:#{@bot.config['atlassian.jira_password']}"
     @remote_jira.login @bot.config['atlassian.jira_username'], @bot.config['atlassian.jira_password']
     @issues = []
     @last_updated_times = nil
@@ -77,11 +79,11 @@ class Atlassian < Plugin
   private 
 
   def issue_format(issue)
-    "#{issue.key} (#{issue.status}/#{issue.priority}): '#{issue.summary}' updated #{time_format(issue.updated)} #{url_format(issue.key)}"
+    "#{issue.key} (#{issue.status}/#{issue.priority}): '#{issue.summary}' updated at #{issue.updated} #{url_format(issue.key)}"
   end
   
   def url_format(key)
-    "#{JIRA_URL}/browse/#{key}"
+    "#{@bot.config['atlassian.jira_url']}/browse/#{key}"
   end
 
   def format_ticket_compare(ticket_a, ticket_b)
@@ -91,53 +93,8 @@ class Atlassian < Plugin
   # time_format
   # Attempt to format the date or time.
   # return a pertty string, or the original.
-  def time_format(date_or_time)
-    date = date_or_time.utc
-    now = Time.now.utc
+  def time_format(datetime)
 
-    diff = (now - date).abs
-    earlier = now > date
-    later = !earlier
-
-    if diff < 1.day && date.day == now.day && earlier
-      return 'earlier today'
-    elsif diff < 1.day && date.day == now.day && later
-      return 'later today'
-    elsif diff < 2.days && date.day == (now - 1.day).utc.day
-      return 'yesterday'
-    elsif diff < 2.days && date.day == (now + 1.day).utc.day
-      return 'tomorrow'
-    elsif diff < 1.week && date.wday < now.wday && earlier
-      return 'earlier this week'
-    elsif diff < 1.week && date.wday > now.wday && later
-      return 'later this week'
-    elsif diff < 1.week && earlier
-      return 'last week'
-    elsif diff < 1.week && later
-      return 'next week'
-    elsif diff < 2.weeks && date.wday < now.wday && earlier
-      return 'last week'
-    elsif diff < 2.weeks && date.wday > now.wday && later
-      return 'next week'
-    elsif diff < 1.month && date.month == now.month && earlier
-      return 'earlier this month'
-    elsif diff < 1.month && date.month == now.month && later
-      return 'later this month'
-    elsif diff < 2.months && date.month == (now - 1.month).utc.month
-      return 'last month'
-    elsif diff < 2.months && date.month == (now + 1.month).utc.month
-      return 'next month'
-    elsif diff < 1.year && date.year == now.year && earlier
-      return 'earlier this year'
-    elsif diff < 1.year && date.year == now.year && later
-      return 'later this year'
-    elsif diff < 2.years && date.year == (now - 1.year).utc.year
-      return 'last year'
-    elsif diff < 2.years && date.year == (now + 1.year).utc.year
-      return 'next year'
-    else
-      date_or_time
-    end
   end  
     
   def get_issues_from_filter_with_limit(filter="10000")  
@@ -167,6 +124,7 @@ class Atlassian < Plugin
       @last_updated_times[:issue_time] = issue_time
     end
   end
+
 end
 
 plugin = Atlassian.new
